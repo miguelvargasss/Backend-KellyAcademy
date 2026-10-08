@@ -5,11 +5,6 @@ export class CreateCourseDto {
   @ApiProperty() @IsString() title: string;
   @ApiProperty() @IsString() code: string;
   @ApiPropertyOptional() @IsOptional() @IsString() subtitle?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() groupNumber?: string;
-  @ApiPropertyOptional({ enum: ['remoto', 'presencial', 'hibrido'] })
-  @IsOptional()
-  @IsEnum(['remoto', 'presencial', 'hibrido'])
-  modality?: 'remoto' | 'presencial' | 'hibrido';
   @ApiPropertyOptional() @IsOptional() @IsString() level?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() bannerGradient?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() period?: string;

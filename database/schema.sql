@@ -68,55 +68,11 @@ CREATE INDEX idx_users_role   ON users(role);
 CREATE INDEX idx_users_status ON users(status);
 
 -- =============================================================================
--- 2. RUTAS DE LA APLICACIÓN WEB
--- =============================================================================
--- Almacena todas las rutas del frontend para gestión centralizada de permisos.
--- Permite agregar/restringir acceso sin cambiar código.
--- =============================================================================
-CREATE TABLE app_routes (
-  id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-  path        VARCHAR(255) NOT NULL UNIQUE,
-  name        VARCHAR(100) NOT NULL,
-  description TEXT,
-  module      VARCHAR(50)  NOT NULL,
-  is_public   BOOLEAN      NOT NULL DEFAULT FALSE,
-  is_active   BOOLEAN      NOT NULL DEFAULT TRUE,
-  sort_order  INTEGER      NOT NULL DEFAULT 0,
-  created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-);
-
-COMMENT ON TABLE  app_routes IS 'Catálogo de todas las rutas del frontend para gestión de permisos.';
-COMMENT ON COLUMN app_routes.path      IS 'Ruta del frontend: /profesor/alumnos o patrón /cursos/:courseId';
-COMMENT ON COLUMN app_routes.is_public IS 'TRUE = accesible sin autenticación (ej: /login)';
-COMMENT ON COLUMN app_routes.module    IS 'Módulo de dominio: auth, courses, grades, etc.';
-
-SELECT create_updated_at_trigger('app_routes');
-CREATE INDEX idx_app_routes_module ON app_routes(module);
-
--- =============================================================================
--- 3. PERMISOS DE ROL SOBRE RUTAS
--- =============================================================================
-CREATE TABLE role_route_permissions (
-  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  route_id   UUID        NOT NULL REFERENCES app_routes(id) ON DELETE CASCADE,
-  role       VARCHAR(20) NOT NULL CHECK (role IN ('profesor', 'estudiante')),
-  can_access BOOLEAN     NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-  CONSTRAINT uq_role_route UNIQUE (route_id, role)
-);
-
-COMMENT ON TABLE  role_route_permissions IS 'Permisos de acceso a rutas por rol. Control granular sin modificar código.';
-COMMENT ON COLUMN role_route_permissions.can_access IS 'TRUE = acceso permitido; FALSE = denegado explícitamente.';
-
-SELECT create_updated_at_trigger('role_route_permissions');
-CREATE INDEX idx_rrp_route_id ON role_route_permissions(route_id);
-CREATE INDEX idx_rrp_role     ON role_route_permissions(role);
-
--- =============================================================================
--- 4. CURSOS
+-- 2. CURSOS
+-- NOTA: Las tablas app_routes y role_route_permissions fueron eliminadas.
+-- El control de acceso a rutas se maneja en el frontend mediante:
+--   - src/middleware.ts     (autenticación + aislamiento de roles, O(1))
+--   - src/core/config/paths.ts (mapa centralizado de rutas tipado)
 -- =============================================================================
 CREATE TABLE courses (
   id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -124,7 +80,6 @@ CREATE TABLE courses (
   title           VARCHAR(200) NOT NULL,
   subtitle        VARCHAR(300),
   code            VARCHAR(60)  NOT NULL UNIQUE,
-  group_number    VARCHAR(50),
   modality        VARCHAR(20)  NOT NULL DEFAULT 'remoto'
                     CHECK (modality IN ('remoto', 'presencial', 'hibrido')),
   level           VARCHAR(30),
@@ -415,82 +370,13 @@ CREATE INDEX idx_calendar_creator_id ON calendar_events(creator_id);
 CREATE INDEX idx_calendar_starts_at  ON calendar_events(starts_at);
 
 -- =============================================================================
--- SEED: RUTAS DE LA APLICACIÓN
--- =============================================================================
-INSERT INTO app_routes (path, name, description, module, is_public, sort_order) VALUES
-  ('/login',                               'Login',                        'Inicio de sesión',                              'auth',          TRUE,   0),
-  ('/configuracion',                        'Configuración',                'Configuración de cuenta',                       'settings',      FALSE, 100),
-  ('/profesor',                             'Dashboard Profesor',           'Panel principal del profesor',                  'dashboard',     FALSE, 200),
-  ('/profesor/alumnos',                     'Gestión de Alumnos',          'CRUD de alumnos y asignación a cursos',         'users',         FALSE, 210),
-  ('/profesor/cursos',                      'Mis Cursos (Profesor)',        'Listado de cursos del profesor',                'courses',       FALSE, 220),
-  ('/profesor/cursos/:courseId',            'Detalle de Curso (Profesor)', 'Gestión de contenido semanal',                  'courses',       FALSE, 221),
-  ('/profesor/cursos/:courseId/calendario', 'Calendario del Curso',        'Vista de calendario por curso',                 'calendar',      FALSE, 222),
-  ('/profesor/cursos/:courseId/alumnos',    'Alumnos del Curso',           'Alumnos matriculados en el curso',              'courses',       FALSE, 223),
-  ('/profesor/cursos/:courseId/anuncios',   'Anuncios del Curso',          'Anuncios del curso específico',                 'announcements', FALSE, 224),
-  ('/profesor/calificaciones',              'Calificaciones (Profesor)',   'Vista global de calificaciones',                'grades',        FALSE, 230),
-  ('/profesor/biblioteca',                  'Biblioteca (Profesor)',        'Biblioteca de recursos del profesor',           'library',       FALSE, 240),
-  ('/profesor/nueva-clase',                 'Nueva Clase',                  'Formulario para sesión sincrónica',             'classes',       FALSE, 250),
-  ('/estudiante',                           'Dashboard Estudiante',         'Panel principal del estudiante',                'dashboard',     FALSE, 300),
-  ('/cursos',                               'Catálogo de Cursos',           'Explorar cursos disponibles',                   'courses',       FALSE, 310),
-  ('/cursos/mis-cursos',                    'Mis Cursos (Estudiante)',      'Cursos en los que está matriculado',            'courses',       FALSE, 311),
-  ('/cursos/:courseId',                     'Detalle de Curso (Alumno)',   'Contenido del curso para el alumno',            'courses',       FALSE, 312),
-  ('/cursos/:courseId/anuncios',            'Anuncios (Alumno)',            'Anuncios del curso para el alumno',             'announcements', FALSE, 313),
-  ('/cursos/:courseId/calendario',          'Calendario (Alumno)',          'Calendario del curso para el alumno',           'calendar',      FALSE, 314),
-  ('/cursos/:courseId/calificaciones',      'Mis Calificaciones',           'Calificaciones del alumno en el curso',         'grades',        FALSE, 315),
-  ('/calificaciones',                       'Calificaciones Globales',      'Todas las calificaciones del estudiante',       'grades',        FALSE, 320),
-  ('/biblioteca',                           'Biblioteca (Alumno)',           'Recursos disponibles para el alumno',           'library',       FALSE, 330),
-  ('/pagos',                                'Pagos',                        'Historial de pagos del estudiante',             'payments',      FALSE, 340);
-
--- =============================================================================
--- SEED: PERMISOS POR ROL
--- =============================================================================
-
--- PROFESOR: acceso a su portal + configuración
-INSERT INTO role_route_permissions (route_id, role, can_access)
-SELECT id, 'profesor', TRUE FROM app_routes
-WHERE path IN (
-  '/configuracion',
-  '/profesor',
-  '/profesor/alumnos',
-  '/profesor/cursos',
-  '/profesor/cursos/:courseId',
-  '/profesor/cursos/:courseId/calendario',
-  '/profesor/cursos/:courseId/alumnos',
-  '/profesor/cursos/:courseId/anuncios',
-  '/profesor/calificaciones',
-  '/profesor/biblioteca',
-  '/profesor/nueva-clase'
-);
-
--- ESTUDIANTE: acceso a su portal + configuración
-INSERT INTO role_route_permissions (route_id, role, can_access)
-SELECT id, 'estudiante', TRUE FROM app_routes
-WHERE path IN (
-  '/configuracion',
-  '/estudiante',
-  '/cursos',
-  '/cursos/mis-cursos',
-  '/cursos/:courseId',
-  '/cursos/:courseId/anuncios',
-  '/cursos/:courseId/calendario',
-  '/cursos/:courseId/calificaciones',
-  '/calificaciones',
-  '/biblioteca',
-  '/pagos'
-);
-
--- Denegar acceso cruzado (seguridad defensiva)
-INSERT INTO role_route_permissions (route_id, role, can_access)
-SELECT id, 'estudiante', FALSE FROM app_routes WHERE path LIKE '/profesor%';
-
-INSERT INTO role_route_permissions (route_id, role, can_access)
-SELECT id, 'profesor', FALSE FROM app_routes
-WHERE path IN ('/estudiante', '/cursos', '/cursos/mis-cursos', '/pagos');
-
--- =============================================================================
--- FIN DEL ESQUEMA — Kelly Academy v1.0
--- Tablas: users, app_routes, role_route_permissions, courses,
---         course_enrollments, course_weeks, library_resources,
---         course_content_items, submissions, grades, classes,
---         announcements, payments, calendar_events (14 tablas)
+-- FIN DEL ESQUEMA — Kelly Academy v1.1
+-- Tablas: users, courses, course_enrollments, course_weeks,
+--         library_resources, course_content_items, submissions,
+--         grades, classes, announcements, payments,
+--         calendar_events, levels (13 tablas)
+--
+-- ELIMINADO: app_routes, role_route_permissions
+-- El control de acceso ahora es responsabilidad del frontend:
+--   middleware.ts (cookie-based) + paths.ts (rutas tipadas)
 -- =============================================================================

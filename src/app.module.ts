@@ -28,7 +28,6 @@ import { ClassesModule } from './modules/classes/classes.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
-import { PermissionsModule } from './modules/permissions/permissions.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { LevelsModule } from './modules/levels/levels.module';
 
@@ -102,7 +101,6 @@ import { LevelsModule } from './modules/levels/levels.module';
     AnnouncementsModule,
     PaymentsModule,
     CalendarModule,
-    PermissionsModule,
     UploadModule,
     LevelsModule,
   ],

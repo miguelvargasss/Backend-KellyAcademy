@@ -30,9 +30,6 @@ export class Course {
   @Column({ length: 60, unique: true })
   code: string;
 
-  @Column({ name: 'group_number', length: 50, nullable: true })
-  groupNumber: string;
-
   @Column({
     length: 20,
     default: 'remoto',
